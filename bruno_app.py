@@ -72,7 +72,7 @@ def show_login(state):
             st.experimental_rerun()
 
     # Load a song image for the background
-    song_image_url = "https://github.com/AidaBJI/ML/blob/main/abstract-particles-wave-background_23-2148368029.jpg"
+    song_image_url = "https://github.com/AidaBJI/ML/blob/main/abstract-particles-wave-background_23-2148368029.jpg?raw=true"
 
     # Set the background image HTML
     background_image_html = f"""
