@@ -5,7 +5,24 @@ from surprise import SVD, Dataset, Reader
 from surprise.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import requests
+from PIL import Image
+from io import BytesIO
 
+# Set Streamlit page configuration to wide mode
+st.set_page_config(layout="wide")
+# Add custom CSS for dark mode
+st.markdown(
+    """
+    <style>
+        body {
+            color: white;
+            background-color: #1E1E1E;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 # Load your dataset
 dataset_url = 'https://raw.githubusercontent.com/AidaBJI/ML/main/song_dataset.csv'
 df = pd.read_csv(dataset_url)  # Replace with the path to your dataset
@@ -23,39 +40,108 @@ tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(df['combined_attributes'])
 
 # Streamlit app
-# Streamlit app
 def main():
     st.title("Song Recommendation System")
 
-    # Step 1: User Login
-    user_id = st.text_input("Enter your user ID:")
-    
-    if user_id:
-        # Step 2: Generate Initial Recommendations
-        initial_recommendations_container = st.empty()
-        initial_recommendations = get_initial_recommendations(user_id)
-        initial_recommendations_container.subheader("Initial Recommendations")
-        initial_recommendations_container.write(initial_recommendations)
+    # Get the current state from the session
+    state = get_state()
 
-        # Step 3: User Refines Recommendations
-        selected_songs = st.multiselect("Select songs to refine recommendations:", df['title'].unique())
+    if state["page"] == "login":
+        show_login(state)
+    elif state["page"] == "recommendations":
+        # Obtain user_id from the session state
+        user_id = st.text_input("Enter your user ID:")
+        show_recommendations(state, user_id)
 
-        if selected_songs:
-            # Step 4: Generate Refined Recommendations
-            refined_recommendations = generate_content_based_recommendations(selected_songs, user_id, n=10)
+def get_state():
+    # This function creates a session state dictionary if it doesn't exist
+    if "state" not in st.session_state:
+        st.session_state.state = {"page": "login"}  # Default to the login page
+    return st.session_state.state
 
-            # Step 5: Final Output
-            final_recommendations_container = st.empty()
-            final_recommendations = get_final_recommendations(user_id, initial_recommendations, refined_recommendations)
-            final_recommendations_container.subheader("Final Recommendations")
-            final_recommendations_container.write(final_recommendations)
+def show_login(state):
+    with st.form("login_form"):
+        user_id = st.text_input("Enter your user ID:")
+        login_button = st.form_submit_button("Login")
+
+    if login_button:
+        if user_id not in df['user'].unique():
+            st.warning("Please enter a valid user ID")
         else:
-            st.warning("Please select at least one song to refine recommendations.")
+            st.session_state.state = {"page": "recommendations", "user_id": user_id}
+            st.experimental_rerun()
 
-    # Step 5: Final Output
-    #final_recommendations = get_final_recommendations(user_id, initial_recommendations, refined_recommendations)
-    #st.subheader("Final Recommendations")
-    #st.write(final_recommendations)
+    # Load a song image for the background
+    song_image_url = "https://img.freepik.com/free-vector/abstract-particles-wave-background_23-2148368029.jpg?w=996&t=st=1701814020~exp=1701814620~hmac=8b0ca082bdf6d3d5d0f99bbe76858260020632ae93bde101df7169e32c04399f"
+
+    # Set the background image HTML
+    background_image_html = f"""
+        <style>
+            body {{
+                background-image: url('{song_image_url}');
+                background-size: cover;
+                background-position: center;
+                opacity: 0.7;
+                top: 0;
+                left: 0;
+                width: 150vw;
+                height: 100vh;
+            }}
+        </style>
+    """
+    st.markdown(background_image_html, unsafe_allow_html=True)
+
+    # Optionally display a message or other content in the login section
+    pass
+def show_recommendations(state, user_id):
+    user_id = state.get("user_id")
+    # Step 2: Generate Initial Recommendations
+    initial_recommendations = get_initial_recommendations(user_id, n=10)
+    st.subheader("Try listening to something new!")
+
+    # Container for horizontally scrollable images and text
+    columns = st.columns(len(initial_recommendations))
+
+    # Display initial recommendations as horizontally scrollable boxes
+    for index, row in enumerate(initial_recommendations.itertuples()):
+        with columns[index].container():
+            display_horizontal_song_box(row.title, row.artist_name)
+
+    # Placeholder for refined recommendations
+    refined_container = st.empty()
+
+    # Step 3: User Refines Recommendations
+    selected_songs = st.multiselect("Pick a song you love, and we'll find similar tunes you might enjoy!", df['title'].unique())
+
+    if selected_songs:
+        # Step 4: Generate Refined Recommendations
+        refined_recommendations = generate_content_based_recommendations(selected_songs, user_id, n=10)
+
+        # Step 5: Final Output
+        final_recommendations = get_final_recommendations(user_id, initial_recommendations, refined_recommendations)
+
+        # Clear initial recommendations container
+        st.subheader("Try these similar tunes:")
+        columns = st.columns(len(final_recommendations))
+
+        # Display final recommendations as horizontally scrollable boxes
+        for index, row in enumerate(final_recommendations.itertuples()):
+            with columns[index].container():
+                display_horizontal_song_box(row.title, row.artist_name)
+    else:
+        st.warning("Select at least one song")
+
+def display_horizontal_song_box(title, artist_name):
+    # Add your music icon URL or local path
+    music_icon_url = "https://www.iconfinder.com/icons/5584525/download/png/512"
+
+    # Retrieve the image
+    response = requests.get(music_icon_url)
+    image = Image.open(BytesIO(response.content))
+
+    # Display image and text in the container
+    st.image(image, use_column_width=True)
+    st.write(f"**Title:** {title}\n**Artist:** {artist_name}")
 
 # Helper functions
 def get_initial_recommendations(user_id, n=10):
@@ -63,6 +149,10 @@ def get_initial_recommendations(user_id, n=10):
     listened_songs = df[df['user'] == user_id]['song'].unique()
     all_songs = df[~df['song'].isin(listened_songs)]['song'].unique()
     
+    if len(all_songs) == 0:
+        st.warning("No new songs found for recommendations. Try listening to more songs!")
+        return pd.DataFrame(columns=['title', 'artist_name'])
+
     predictions = []
     for song in all_songs:
         predictions.append((song, algo.predict(user_id, song).est))
@@ -70,9 +160,10 @@ def get_initial_recommendations(user_id, n=10):
     predictions.sort(key=lambda x: x[1], reverse=True)
     
     recommended_song_ids = [song for song, _ in predictions[:n]]
-    recommended_songs = df[df['song'].isin(recommended_song_ids)][['title', 'artist_name']].drop_duplicates().head(n)
+    recommended_songs = df[df['song'].isin(recommended_song_ids) & ~df['song'].isin(listened_songs)][['title', 'artist_name']].drop_duplicates().head(n)
     
     return recommended_songs
+
 
 def generate_content_based_recommendations(selected_songs, user_id, n=10):
     # Get the songs the user has already listened to
