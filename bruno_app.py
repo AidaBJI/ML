@@ -72,7 +72,7 @@ def show_login(state):
             st.experimental_rerun()
 
     # Load a song image for the background
-    song_image_url = "https://img.freepik.com/free-vector/abstract-particles-wave-background_23-2148368029.jpg?w=996&t=st=1701814020~exp=1701814620~hmac=8b0ca082bdf6d3d5d0f99bbe76858260020632ae93bde101df7169e32c04399f"
+    song_image_url = "https://github.com/AidaBJI/ML/blob/main/abstract-particles-wave-background_23-2148368029.jpg"
 
     # Set the background image HTML
     background_image_html = f"""
