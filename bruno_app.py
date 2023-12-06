@@ -8,10 +8,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 import requests
 from PIL import Image
 from io import BytesIO
+import matplotlib.pyplot as plt
+import numpy as np
 
-# Set Streamlit page configuration to wide mode
+
+#Streamlit page configuration to wide mode
 st.set_page_config(layout="wide")
-# Add custom CSS for dark mode
+# CSS for dark mode
 st.markdown(
     """
     <style>
@@ -23,9 +26,9 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# Load your dataset
+# Loading dataset
 dataset_url = 'https://raw.githubusercontent.com/AidaBJI/ML/main/data.csv'
-df = pd.read_csv(dataset_url)  # Replace with the path to your dataset
+df = pd.read_csv(dataset_url)  
 
 # Configuration for collaborative filtering
 reader = Reader(rating_scale=(df['play_count'].min(), df['play_count'].max()))
@@ -40,6 +43,7 @@ tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(df['combined_attributes'])
 
 
+
 # Streamlit app
 def main():
     st.title("Song Recommendation System")
@@ -51,13 +55,12 @@ def main():
         show_login(state)
     elif state["page"] == "recommendations":
         # Obtain user_id from the session state
-        #user_id = st.text_input("Enter your user ID:")
         show_recommendations(state)
 
 def get_state():
     # This function creates a session state dictionary if it doesn't exist
     if "state" not in st.session_state:
-        st.session_state.state = {"page": "login"}  # Default to the login page
+        st.session_state.state = {"page": "login"}
     return st.session_state.state
 
 def show_login(state):
@@ -91,23 +94,21 @@ def show_login(state):
         </style>
     """
     st.markdown(background_image_html, unsafe_allow_html=True)
-
-    # Optionally display a message or other content in the login section
     pass
-  # Display initial recommendations and scores
 
 
+# Display initial recommendations and scores
 def show_recommendations(state):
     user_id = state.get("user_id")
 
-    # Step 2: Generate Initial Recommendations
+    # Generate Initial Recommendations
     initial_recommendations, scores = get_initial_recommendations(user_id, n=10)
     st.subheader("Try listening to something new!")
     state["initial_scores"] = scores
     # Container for horizontally scrollable images and text
     columns = st.columns(len(initial_recommendations))
 
-    # Display initial recommendations as horizontally scrollable boxes
+    # Display initial recommendations
     for index, row in enumerate(initial_recommendations.itertuples()):
         with columns[index].container():
             display_horizontal_song_box(row.title, row.artist_name)
@@ -117,24 +118,22 @@ def show_recommendations(state):
 
     listened_songs = df[df['user'] == user_id]['title'].unique()
 
-    # Step 3: User Refines Recommendations
+    # User Refines Recommendations
     selected_songs = st.multiselect(
         "Pick a song you love, and we'll find similar tunes you might enjoy!",
-        listened_songs  # Provide only the songs the user has listened to as options
+        listened_songs 
     )
 
     if selected_songs:
-        # Step 4: Generate Refined Recommendations
+        # Generate Refined Recommendations
         refined_recommendations = generate_content_based_recommendations(selected_songs, user_id, n=10)
 
-        # Display final recommendations outside the "About" section
+        # Display final recommendations
         st.subheader("Final Recommendations")
         columns = st.columns(len(refined_recommendations))
-
-        # Display refined recommendations as horizontally scrollable boxes
         for index, row in enumerate(refined_recommendations):
             with columns[index].container():
-                display_horizontal_song_box(row['title'], row['artist_name'])
+                display_horizontal_song_box(row['title'], row['artist_name'])        
     else:
         st.warning("Select at least one song")
 
@@ -151,9 +150,31 @@ def show_recommendations(state):
             "for you, sorted from the highest predicted enjoyment to the lowest:"
         )
 
+        # Initialisation of titles and scores
+        titles = []
+        scores = []
+
         # Display initial recommendations and scores
         for (index, row), score in zip(enumerate(initial_recommendations.itertuples()), state["initial_scores"]):
             display_initial_recommendation_with_score(row.title, row.artist_name, user_id, score)
+            titles.append(row.title)
+            scores.append(score)
+        st.write(
+            "For the second recommendation, it was done based on similarities between the songs selected by the user, according to attributes of the specific songs such as title of the song, artist, release and year"
+        )    
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(titles, scores, color='skyblue') 
+        plt.xlabel('Songs')
+        plt.ylabel('Scores')
+        plt.title('Histogram')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()  
+        st.pyplot(plt)
+       st.write(
+            "For the second recommendation, it was done based on similarities between the songs selected by the user, according to attributes of the specific songs such as title of the song, artist, release and year"
+        )       
+    
         
     if st.button("Logout"):
         # Reset the state to go back to the login page
@@ -161,8 +182,9 @@ def show_recommendations(state):
         st.experimental_rerun()
 def display_initial_recommendation_with_score(title, artist_name, user_id, score):
     st.write(f"**Title:** {title}\n**Artist:** {artist_name}\n**Score:** {score:.2f}")
+
 def display_horizontal_song_box(title, artist_name):
-    # Add your music icon URL or local path
+    # Adding music icon URL
     music_icon_url = "https://www.iconfinder.com/icons/5584525/download/png/512"
 
     # Retrieve the image
@@ -173,7 +195,8 @@ def display_horizontal_song_box(title, artist_name):
     st.image(image, use_column_width=True)
     st.write(f"**Title:** {title}\n**Artist:** {artist_name}")
 
-# Helper functions
+# Helper functions:
+
 def get_initial_recommendations(user_id, n=10):
     # Collaborative filtering logic
     listened_songs = df[df['user'] == user_id]['song'].unique()
@@ -211,7 +234,7 @@ def generate_content_based_recommendations(selected_songs, user_id, n=10):
         selected_song_attributes = df[df['title'] == selected_song]['combined_attributes'].iloc[0]
         selected_song_vectors.append(tfidf_vectorizer.transform([selected_song_attributes]))
 
-    # Aggregate TF-IDF vectors (you may choose a different strategy based on your requirements)
+    # Aggregate TF-IDF vectors
     selected_songs_vector = sum(selected_song_vectors)
 
     # Calculate cosine similarities between the selected songs and all songs
@@ -240,7 +263,6 @@ def generate_content_based_recommendations(selected_songs, user_id, n=10):
 def get_final_recommendations(user_id, initial_recommendations, refined_recommendations, initial_weight=0.3, refined_weight=0.7, n=10):
     # Implement logic to combine and filter recommendations
     # Return the final list of recommendations
-    # For example, you can remove duplicates and filter songs the user has already listened to
     listened_songs = df[df['user'] == user_id]['title'].unique()
 
     # Convert refined_recommendations to a DataFrame
@@ -252,7 +274,7 @@ def get_final_recommendations(user_id, initial_recommendations, refined_recommen
 
     # Concatenate and calculate a weighted score
     combined_recommendations = pd.concat([initial_recommendations[['title', 'artist_name', 'weight']], 
-                                          refined_df[['title', 'artist_name', 'weight']]])
+    refined_df[['title', 'artist_name', 'weight']]])
 
     # Group by title and artist, sum the weights
     combined_recommendations = combined_recommendations.groupby(['title', 'artist_name']).agg({'weight': 'sum'}).reset_index()
