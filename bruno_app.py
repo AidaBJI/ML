@@ -171,11 +171,7 @@ def show_recommendations(state):
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()  
         st.pyplot(plt)
-       st.write(
-            "For the second recommendation, it was done based on similarities between the songs selected by the user, according to attributes of the specific songs such as title of the song, artist, release and year"
-        )       
-    
-        
+  
     if st.button("Logout"):
         # Reset the state to go back to the login page
         st.session_state.state = {"page": "login"}
