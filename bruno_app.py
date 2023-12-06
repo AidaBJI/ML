@@ -142,25 +142,13 @@ def show_recommendations(state):
     with st.expander("About"):
         st.write(
             "Welcome to the Song Recommendation System!",
-            "This system provides personalized song recommendations based on your listening preferences.",
-            "Here's how it works:",
-            "1. Enter your user ID to get started.",
-            "2. The system generates initial recommendations using collaborative filtering.",
-            "3. Refine your recommendations by selecting songs you like.",
-            "4. The system combines collaborative and content-based filtering for final recommendations.",
-            "5. Enjoy discovering new songs!",
-            "",
-            "Example:",
-            "If you select a song, the system will find similar songs based on collaborative and content-based methods.",
-            "You can refine recommendations by selecting more songs you like.",
-            "The final recommendations are a blend of both methods, providing a unique and tailored experience.",
-            "",
-            "Accuracy Information:",
-            "The collaborative filtering model is trained on user listening patterns.",
-            "The content-based filtering model considers song attributes for recommendations.",
-            "Keep in mind that the accuracy depends on the amount of data available and the diversity of your preferences.",
-            "",
-            "Initial Recommendations and Scores:"
+            "To get an idea how this system works Imagine our recommendation system as your musical companion, suggesting songs",
+            "it thinks you might like. It does this by looking at what other users who share similar",
+            "musical tastes have enjoyed. So, for your initial recommendations, we start by ",
+            "predicting how much you might enjoy certain songs based on what users with similar ",
+            "tastes liked. The system assigns a score to each song, and the higher the score, the",
+            "more confident it is that you'll enjoy the song. Here are the top songs it recommended ",
+            "for you, sorted from the highest predicted enjoyment to the lowest:"
         )
 
         # Display initial recommendations and scores
