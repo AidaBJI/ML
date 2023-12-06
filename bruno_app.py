@@ -39,6 +39,7 @@ df['combined_attributes'] = df['title'] + ' ' + df['release'] + ' ' + df['artist
 tfidf_vectorizer = TfidfVectorizer()
 tfidf_matrix = tfidf_vectorizer.fit_transform(df['combined_attributes'])
 
+
 # Streamlit app
 def main():
     st.title("Song Recommendation System")
@@ -50,8 +51,8 @@ def main():
         show_login(state)
     elif state["page"] == "recommendations":
         # Obtain user_id from the session state
-        user_id = st.text_input("Enter your user ID:")
-        show_recommendations(state, user_id)
+        #user_id = st.text_input("Enter your user ID:")
+        show_recommendations(state)
 
 def get_state():
     # This function creates a session state dictionary if it doesn't exist
@@ -93,12 +94,16 @@ def show_login(state):
 
     # Optionally display a message or other content in the login section
     pass
-def show_recommendations(state, user_id):
-    user_id = state.get("user_id")
-    # Step 2: Generate Initial Recommendations
-    initial_recommendations = get_initial_recommendations(user_id, n=10)
-    st.subheader("Try listening to something new!")
+  # Display initial recommendations and scores
 
+
+def show_recommendations(state):
+    user_id = state.get("user_id")
+
+    # Step 2: Generate Initial Recommendations
+    initial_recommendations, scores = get_initial_recommendations(user_id, n=10)
+    st.subheader("Try listening to something new!")
+    state["initial_scores"] = scores
     # Container for horizontally scrollable images and text
     columns = st.columns(len(initial_recommendations))
 
@@ -110,27 +115,64 @@ def show_recommendations(state, user_id):
     # Placeholder for refined recommendations
     refined_container = st.empty()
 
+    listened_songs = df[df['user'] == user_id]['title'].unique()
+
     # Step 3: User Refines Recommendations
-    selected_songs = st.multiselect("Pick a song you love, and we'll find similar tunes you might enjoy!", df['title'].unique())
+    selected_songs = st.multiselect(
+        "Pick a song you love, and we'll find similar tunes you might enjoy!",
+        listened_songs  # Provide only the songs the user has listened to as options
+    )
 
     if selected_songs:
         # Step 4: Generate Refined Recommendations
         refined_recommendations = generate_content_based_recommendations(selected_songs, user_id, n=10)
 
-        # Step 5: Final Output
-        final_recommendations = get_final_recommendations(user_id, initial_recommendations, refined_recommendations)
+        # Display final recommendations outside the "About" section
+        st.subheader("Final Recommendations")
+        columns = st.columns(len(refined_recommendations))
 
-        # Clear initial recommendations container
-        st.subheader("Try these similar tunes:")
-        columns = st.columns(len(final_recommendations))
-
-        # Display final recommendations as horizontally scrollable boxes
-        for index, row in enumerate(final_recommendations.itertuples()):
+        # Display refined recommendations as horizontally scrollable boxes
+        for index, row in enumerate(refined_recommendations):
             with columns[index].container():
-                display_horizontal_song_box(row.title, row.artist_name)
+                display_horizontal_song_box(row['title'], row['artist_name'])
     else:
         st.warning("Select at least one song")
 
+    # About button
+    with st.expander("About"):
+        st.write(
+            "Welcome to the Song Recommendation System!",
+            "This system provides personalized song recommendations based on your listening preferences.",
+            "Here's how it works:",
+            "1. Enter your user ID to get started.",
+            "2. The system generates initial recommendations using collaborative filtering.",
+            "3. Refine your recommendations by selecting songs you like.",
+            "4. The system combines collaborative and content-based filtering for final recommendations.",
+            "5. Enjoy discovering new songs!",
+            "",
+            "Example:",
+            "If you select a song, the system will find similar songs based on collaborative and content-based methods.",
+            "You can refine recommendations by selecting more songs you like.",
+            "The final recommendations are a blend of both methods, providing a unique and tailored experience.",
+            "",
+            "Accuracy Information:",
+            "The collaborative filtering model is trained on user listening patterns.",
+            "The content-based filtering model considers song attributes for recommendations.",
+            "Keep in mind that the accuracy depends on the amount of data available and the diversity of your preferences.",
+            "",
+            "Initial Recommendations and Scores:"
+        )
+
+        # Display initial recommendations and scores
+        for (index, row), score in zip(enumerate(initial_recommendations.itertuples()), state["initial_scores"]):
+            display_initial_recommendation_with_score(row.title, row.artist_name, user_id, score)
+        
+    if st.button("Logout"):
+        # Reset the state to go back to the login page
+        st.session_state.state = {"page": "login"}
+        st.experimental_rerun()
+def display_initial_recommendation_with_score(title, artist_name, user_id, score):
+    st.write(f"**Title:** {title}\n**Artist:** {artist_name}\n**Score:** {score:.2f}")
 def display_horizontal_song_box(title, artist_name):
     # Add your music icon URL or local path
     music_icon_url = "https://www.iconfinder.com/icons/5584525/download/png/512"
@@ -148,21 +190,24 @@ def get_initial_recommendations(user_id, n=10):
     # Collaborative filtering logic
     listened_songs = df[df['user'] == user_id]['song'].unique()
     all_songs = df[~df['song'].isin(listened_songs)]['song'].unique()
-    
+
     if len(all_songs) == 0:
         st.warning("No new songs found for recommendations. Try listening to more songs!")
-        return pd.DataFrame(columns=['title', 'artist_name'])
+        return pd.DataFrame(columns=['title', 'artist_name']), []
 
     predictions = []
     for song in all_songs:
-        predictions.append((song, algo.predict(user_id, song).est))
-    
+        prediction = algo.predict(user_id, song)
+        predictions.append((song, prediction.est))
+
     predictions.sort(key=lambda x: x[1], reverse=True)
-    
+
     recommended_song_ids = [song for song, _ in predictions[:n]]
     recommended_songs = df[df['song'].isin(recommended_song_ids) & ~df['song'].isin(listened_songs)][['title', 'artist_name']].drop_duplicates().head(n)
-    
-    return recommended_songs
+
+    scores = [score for _, score in predictions[:n]]
+
+    return recommended_songs, scores
 
 
 def generate_content_based_recommendations(selected_songs, user_id, n=10):
