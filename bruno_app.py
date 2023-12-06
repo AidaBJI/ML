@@ -24,7 +24,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 # Load your dataset
-dataset_url = 'https://raw.githubusercontent.com/AidaBJI/ML/main/song_dataset.csv'
+dataset_url = 'https://raw.githubusercontent.com/AidaBJI/ML/main/data.csv'
 df = pd.read_csv(dataset_url)  # Replace with the path to your dataset
 
 # Configuration for collaborative filtering
